@@ -1,5 +1,4 @@
 import logging
-import sys
 from http import HTTPStatus
 from typing import Dict
 
@@ -9,6 +8,19 @@ from github.PullRequest import PullRequest
 _REQUEST_TIMEOUT = 300.0
 
 logger = logging.getLogger(__name__)
+
+
+def _auth_headers(
+    *,
+    token: str,
+    org_id: str,
+    is_yandex_cloud_org: bool,
+) -> dict[str, str]:
+    return {
+        "Authorization": f"OAuth {token}",
+        f"X{'-Cloud' if is_yandex_cloud_org else ''}-Org-ID": org_id,  # noqa
+        "Content-Type": "application/json",
+    }
 
 
 def _format_output(
@@ -50,7 +62,7 @@ def task_exists(
       org_id: Registered organization in Yandex Tracker.
       is_yandex_cloud_org: Yandex organization header definition ID flag.
       tasks: All collected tracker tasks.
-      token: Yandex Tracker IAM token.
+      token: Yandex Tracker OAuth token.
     Returns:
       List of all valid tasks.
     """
@@ -59,11 +71,11 @@ def task_exists(
 
     for task in filtered_tasks:
         response = requests.get(
-            headers={
-                "Authorization": f"Bearer {token}",
-                f"X{'-Cloud' if is_yandex_cloud_org else ''}-Org-ID": org_id,  # noqa
-                "Content-Type": "application/json",
-            },
+            headers=_auth_headers(
+                token=token,
+                org_id=org_id,
+                is_yandex_cloud_org=is_yandex_cloud_org,
+            ),
             url=f"https://api.tracker.yandex.net/v2/issues/{task}",
             timeout=_REQUEST_TIMEOUT,
         )
@@ -92,7 +104,7 @@ def _get_all_transitions(
     Fetch all available task transitions.
     Args:
       ignore_tasks: list of tasks to ignore.
-      token: Yandex IAM token.
+      token: Yandex Tracker OAuth token.
       org_id: Yandex organization ID.
       is_yandex_cloud_org: Yandex organization header definition ID flag.
       task_keys: Yandex tracker task key.
@@ -105,11 +117,11 @@ def _get_all_transitions(
     if tasks:
         for task in filter(None, tasks):
             response = requests.get(
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    f"X{'-Cloud' if is_yandex_cloud_org else ''}-Org-ID": org_id,  # noqa
-                    "Content-Type": "application/json",
-                },
+                headers=_auth_headers(
+                    token=token,
+                    org_id=org_id,
+                    is_yandex_cloud_org=is_yandex_cloud_org,
+                ),
                 url=f"https://api.tracker.yandex.net/v2/issues/{task}/transitions",
                 timeout=_REQUEST_TIMEOUT,
             )
@@ -137,7 +149,7 @@ def add_pr_link2task(
     Args:
       org_id: str. Yandex's organization ID.
       is_yandex_cloud_org: Yandex organization header definition ID flag.
-      token: Yandex IAM token.
+      token: Yandex Tracker OAuth token.
       task_key: Yandex Tracker Task Id
       pr_link: Link to Pull Request
 
@@ -148,11 +160,11 @@ def add_pr_link2task(
         '{% note info "Pull request was opened" %}\n\n' f"{pr_link}\n\n" "{% endnote %}"
     )
     response = requests.post(
-        headers={
-            "Authorization": f"Bearer {token}",
-            f"X{'-Cloud' if is_yandex_cloud_org else ''}-Org-ID": org_id,  # noqa
-            "Content-Type": "application/json",
-        },
+        headers=_auth_headers(
+            token=token,
+            org_id=org_id,
+            is_yandex_cloud_org=is_yandex_cloud_org,
+        ),
         url=f"https://api.tracker.yandex.net/v2/issues/{task_key}/comments",
         json={"text": text},
         timeout=_REQUEST_TIMEOUT,
@@ -184,7 +196,7 @@ def move_task(
       pr: GitHub PullRequest object.
       task_keys: List of task keys.
       target_status: The name of the transition where to move the task.
-      token: Yandex IAM token.
+      token: Yandex Tracker OAuth token.
     Returns:
       Message that will be displayed in action job output.
     """
@@ -201,11 +213,11 @@ def move_task(
         for a, b in v.items():
             if target_status in a or target_status in b:
                 cur_response = requests.post(
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        f"X{'-Cloud' if is_yandex_cloud_org else ''}-Org-ID": org_id,  # noqa
-                        "Content-Type": "application/json",
-                    },
+                    headers=_auth_headers(
+                        token=token,
+                        org_id=org_id,
+                        is_yandex_cloud_org=is_yandex_cloud_org,
+                    ),
                     url=f"https://api.tracker.yandex.net/v2/issues/{k}/transitions/{a}/_execute",
                     json={"comment": f'Task moved to "{b}"'},
                     timeout=_REQUEST_TIMEOUT,
@@ -225,26 +237,3 @@ def move_task(
 
     statuses = _format_output(target_status=target_status, statuses=transition_statuses)
     return statuses
-
-
-def get_iam_token(oauth_token: str) -> str:
-    response = requests.post(
-        headers={
-            "Content-Type": "application/json",
-        },
-        url="https://iam.api.cloud.yandex.net/iam/v1/tokens",
-        json={"yandexPassportOauthToken": oauth_token},
-        timeout=_REQUEST_TIMEOUT,
-    )
-    if response.status_code != HTTPStatus.OK:
-        logger.warning(
-            "Get IAM has error: %s (Status: %s)", response.text, response.status_code
-        )
-        sys.exit(1)
-    response_data = response.json()
-    iam_token = response_data.get("iamToken")
-    if not iam_token:
-        logger.warning("IAM token not found: %r", response_data)
-        sys.exit(1)
-
-    return iam_token

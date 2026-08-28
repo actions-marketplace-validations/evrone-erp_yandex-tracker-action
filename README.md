@@ -161,16 +161,43 @@ You can move an issue when opening a PR and when merging a PR into different tra
 ## Inputs
 
 - `token`: **Required** Github token.
-- `yandex_oauth2_token`: **Required** Yandex oauth2 token. You need to register an OAUTH2 application and then get a
-  user token. [Documentation](https://yandex.ru/dev/id/doc/dg/oauth/concepts/about.html).
-- `yandex_org_id`: **Required** ID of organization registered in Yandex Tracker.
-- `is_yandex_cloud_org`: **Optional** If only the Yandex Cloud Organization is applied to the Tracker, the
-  `X-Cloud-Org-ID` header is used.
+- `yandex_oauth2_token`: **Required** OAuth token from [oauth.yandex.com](https://oauth.yandex.com/) with
+  `tracker:write` (or `tracker:read`) scope. The token is sent directly to Tracker API via
+  `Authorization: OAuth` header — no IAM exchange is needed for Yandex 360 organizations.
+  [Tracker API access documentation](https://yandex.ru/support/tracker/en/api-ref/access).
+- `yandex_org_id`: **Required** ID of organization registered in Yandex Tracker (from
+  **Administration → Organizations**).
+- `is_yandex_cloud_org`: **Optional** If Tracker is linked to Yandex Cloud Organization, set to `true` to use the
+  `X-Cloud-Org-ID` header instead of `X-Org-ID`.
 - `ignore`: **Optional** Ignored tasks separated by commas.
 - `tasks`: **Optional** The task key to be moved on board.
 - `task_url`: **Optional** The default value is false. Set to true if you want to comment on a PR with the task URL.
 - `to`: **Optional** Specify where you want to move the task. The default is `in_review` **for open PRs and `resolve`
   for merged PRs**.
+
+## Migration (action stopped working after June 2026)
+
+Starting June 1, 2026, Yandex Cloud IAM no longer accepts new OAuth tokens for IAM exchange. Previous versions of
+this action exchanged the OAuth token for an IAM token before calling Tracker API, which caused authentication
+failures.
+
+**To restore the action:**
+
+1. Update to the latest version of this action.
+2. Re-issue an OAuth token at [oauth.yandex.com](https://oauth.yandex.com/) with `tracker:write` scope
+   (see [Tracker API access](https://yandex.ru/support/tracker/en/api-ref/access)).
+3. Update the `YANDEX_OAUTH2_TOKEN` secret in your repository.
+4. Verify that `yandex_org_id` matches your organization ID from **Administration → Organizations**.
+5. For Yandex 360 organizations, leave `is_yandex_cloud_org` unset (default `false`).
+
+You can verify the token manually:
+
+```shell
+curl -H "Authorization: OAuth <oauth2-token>" \
+     -H "X-Org-ID: <org-id>" \
+     -H "Content-Type: application/json" \
+     https://api.tracker.yandex.net/v2/issues/<task-key>
+```
 
 [yandex-tracker-action](https://evrone.com/yandex-tracker-action?utm_source=github&utm_medium=yandex-tracker-action)
 project is created & supported by [Evrone](https://evrone.com/?utm_source=github&utm_medium=yandex-tracker-action)
