@@ -25,6 +25,7 @@ inputs:
     description: YANDEX organization id for send the request with payload
   is_yandex_cloud_org:
     required: false
+    default: 'false'
     description: If only the Yandex Cloud Organization is applied to the Tracker, the X-Cloud-Org-ID header is used.
 
 runs:
