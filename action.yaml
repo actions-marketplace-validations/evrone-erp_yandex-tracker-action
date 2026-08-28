@@ -19,7 +19,7 @@ inputs:
     description: Github Token. Needed when TASK_URL is true. For setting comments on PR
   yandex_oauth2_token:
     required: true
-    description: YANDEX OAUTH2 token. From what account send the request with payload
+    description: OAuth token from oauth.yandex.com with tracker:write scope
   yandex_org_id:
     required: true
     description: YANDEX organization id for send the request with payload

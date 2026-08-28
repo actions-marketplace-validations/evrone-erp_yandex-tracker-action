@@ -205,11 +205,14 @@ jobs:
 ## Обязательные параметры
 
 - `token`: **Обязательно** Токен Github.
-- `yandex_oauth2_token`: **Обязательно** Токен Yandex oauth2. Вам необходимо зарегистрировать приложение OAUTH2, а затем
-  получить токен пользователя. [Документация](https://yandex.ru/dev/id/doc/dg/oauth/concepts/about.html).
-- `yandex_org_id`: **Обязательно** Идентификатор организации, зарегистрированной в Yandex Tracker.
-- `is_yandex_cloud_org`: **Опционально** Если к Трекеру применяется только организация Yandex Cloud Organization,
-  используется заголовок `X-Cloud-Org-ID`.
+- `yandex_oauth2_token`: **Обязательно** OAuth-токен с [oauth.yandex.com](https://oauth.yandex.com/) с правами
+  `tracker:write` (или `tracker:read`). Токен передаётся напрямую в Tracker API через заголовок
+  `Authorization: OAuth` — для организаций Yandex 360 обмен на IAM не требуется.
+  [Документация по доступу к API Tracker](https://yandex.ru/support/tracker/ru/api-ref/access).
+- `yandex_org_id`: **Обязательно** Идентификатор организации из раздела **Администрирование → Организации**
+  в Yandex Tracker.
+- `is_yandex_cloud_org`: **Опционально** Если Tracker привязан к Yandex Cloud Organization, установите `true` для
+  использования заголовка `X-Cloud-Org-ID` вместо `X-Org-ID`.
 - `ignore`: **Опционально** Игнорируемые задачи, разделенные запятыми.
 - `tasks`: **Опционально** Ключ задачи, которую нужно переместить на доску.
 - `task_url`: **Опционально** Значение по умолчанию - `false`. Установите в `true`, если вы хотите прокомментировать PR
@@ -217,7 +220,28 @@ jobs:
 - `to`: **Опционально** Укажите, куда вы хотите переместить задачу. По умолчанию - `in_review` **для открытых PR
   и `resolve` для закрытых PR**.
 
-[Документация по получению OAUTH2 токена от Яндекс](https://yandex.ru/dev/id/doc/dg/oauth/concepts/about.html)
+## Миграция (экшен перестал работать после июня 2026)
+
+С 1 июня 2026 Yandex Cloud IAM больше не принимает новые OAuth-токены для обмена на IAM. Предыдущие версии экшена
+обменивали OAuth-токен на IAM перед вызовом Tracker API, из-за чего авторизация переставала работать.
+
+**Чтобы восстановить работу экшена:**
+
+1. Обновите экшен до последней версии.
+2. Перевыпустите OAuth-токен на [oauth.yandex.com](https://oauth.yandex.com/) с правами `tracker:write`
+   (см. [доступ к API Tracker](https://yandex.ru/support/tracker/ru/api-ref/access)).
+3. Обновите секрет `YANDEX_OAUTH2_TOKEN` в репозитории.
+4. Убедитесь, что `yandex_org_id` совпадает с ID организации из **Администрирование → Организации**.
+5. Для организаций Yandex 360 не включайте `is_yandex_cloud_org` (значение по умолчанию — `false`).
+
+Проверить токен можно вручную:
+
+```shell
+curl -H "Authorization: OAuth <oauth2-token>" \
+     -H "X-Org-ID: <org-id>" \
+     -H "Content-Type: application/json" \
+     https://api.tracker.yandex.net/v2/issues/<task-key>
+```
 
 [yandex-tracker-action](https://evrone.com/yandex-tracker-action?utm_source=github&utm_medium=yandex-tracker-action)
 проект создан и поддержан [Evrone](https://evrone.com/?utm_source=github&utm_medium=yandex-tracker-action)

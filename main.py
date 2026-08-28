@@ -10,7 +10,7 @@ from helpers.github import check_if_pr, get_pr_commits, set_pr_body
 
 # conflict with black
 # isort: off
-from helpers.yandex import add_pr_link2task, get_iam_token, move_task, task_exists
+from helpers.yandex import add_pr_link2task, move_task, task_exists
 
 # isort: on
 
@@ -55,14 +55,12 @@ if __name__ == "__main__":
     pr = repo.get_pull(number=int(data["pull_request"]["number"]))
     commits = get_pr_commits(pr=pr)
     task_keys = list(set(TASK_KEYS.split(",") + commits))
-    iam_token = get_iam_token(YANDEX_OAUTH2_TOKEN)
-
     if any(task_keys):
         existing_tasks: Dict = task_exists(
             org_id=YANDEX_ORG_ID,
             is_yandex_cloud_org=IS_YANDEX_CLOUD_ORG,
             tasks=task_keys,
-            token=iam_token,
+            token=YANDEX_OAUTH2_TOKEN,
         )
     else:
         logger.warning("[SKIPPED] No tasks found!")
@@ -92,7 +90,7 @@ if __name__ == "__main__":
             pr=pr,
             task_keys=list(existing_tasks),
             target_status=target_status,
-            token=iam_token,
+            token=YANDEX_OAUTH2_TOKEN,
         )
 
         # Add comment with PR link to comment for tasks
@@ -101,7 +99,7 @@ if __name__ == "__main__":
                 add_pr_link2task(
                     org_id=YANDEX_ORG_ID,
                     is_yandex_cloud_org=IS_YANDEX_CLOUD_ORG,
-                    token=iam_token,
+                    token=YANDEX_OAUTH2_TOKEN,
                     task_key=task_key,
                     pr_link=pr.html_url,
                 )
